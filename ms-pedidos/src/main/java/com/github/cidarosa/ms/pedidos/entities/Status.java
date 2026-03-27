@@ -9,5 +9,5 @@ public enum Status {
     FALHA_PAGAMENTO,
     SAIU_PARA_ENTREGA,
     ENTREGUE,
-    CANCELA
+    CANCELADO
 }
