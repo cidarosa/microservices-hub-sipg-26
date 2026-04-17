@@ -18,6 +18,7 @@ public class PagamentoController {
     @Autowired
     private PagamentoService pagamentoService;
 
+
     @GetMapping
     public ResponseEntity<List<PagamentoDTO>> getAllPagamentos(){
 

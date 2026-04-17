@@ -10,9 +10,14 @@ public class Factory {
     public static Pagamento createPagamento() {
 
         Pagamento pagamento = new Pagamento(
-                1L, BigDecimal.valueOf(32.25),
-                "Briene de Tarth", "3654785412365478",
-                "07/05", "354", Status.CRIADO, 1l
+                1L,
+                BigDecimal.valueOf(32.25),
+                "Briene de Tarth",
+                "3654785412365478",
+                "07/05",
+                "354",
+                Status.CRIADO,
+                1l
         );
 
         return pagamento;
