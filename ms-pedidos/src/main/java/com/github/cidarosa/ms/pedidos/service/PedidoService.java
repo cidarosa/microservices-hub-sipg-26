@@ -5,6 +5,7 @@ import com.github.cidarosa.ms.pedidos.dto.PedidoDTO;
 import com.github.cidarosa.ms.pedidos.entities.ItemDoPedido;
 import com.github.cidarosa.ms.pedidos.entities.Pedido;
 import com.github.cidarosa.ms.pedidos.entities.Status;
+import com.github.cidarosa.ms.pedidos.exceptions.PedidoPagoException;
 import com.github.cidarosa.ms.pedidos.exceptions.ResourceNotFoundException;
 import com.github.cidarosa.ms.pedidos.repositories.ItemDoPedidoRepository;
 import com.github.cidarosa.ms.pedidos.repositories.PedidoRepository;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class PedidoService {
@@ -26,7 +28,7 @@ public class PedidoService {
     private ItemDoPedidoRepository itemDoPedidoRepository;
 
     @Transactional(readOnly = true)
-    public List<PedidoDTO> findAllPedidos(){
+    public List<PedidoDTO> findAllPedidos() {
 
         return pedidoRepository.findAll()
                 .stream()
@@ -35,7 +37,7 @@ public class PedidoService {
     }
 
     @Transactional(readOnly = true)
-    public PedidoDTO findPedidoById(Long id){
+    public PedidoDTO findPedidoById(Long id) {
 
         Pedido pedido = pedidoRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Recurso não encontrado. ID: " + id)
@@ -45,26 +47,33 @@ public class PedidoService {
     }
 
     @Transactional
-    public PedidoDTO savePedido(PedidoDTO pedidoDTO){
+    public PedidoDTO savePedido(PedidoDTO pedidoDTO) {
 
         Pedido pedido = new Pedido();
         pedido.setData(LocalDate.now());
         pedido.setStatus(Status.CRIADO);
-        mapDtpToPedido(pedidoDTO, pedido);
+        mapDtoToPedido(pedidoDTO, pedido);
         pedido.calcularValorTotalDoPedido();
         pedido = pedidoRepository.save(pedido);
         return new PedidoDTO(pedido);
     }
 
     @Transactional
-    public PedidoDTO updatePedido(Long id, PedidoDTO pedidoDTO){
+    public PedidoDTO updatePedido(Long id, PedidoDTO pedidoDTO) {
 
         try {
             Pedido pedido = pedidoRepository.getReferenceById(id);
+
+            if (pedido.getStatus().equals(Status.PAGO)) {
+
+                throw new PedidoPagoException(
+                        String.format("Pedido id %d já está PAGO e não pode ser alerado.", id)
+                );
+            }
             pedido.getItens().clear();
             pedido.setData(LocalDate.now());
-            pedido.setStatus(Status.CRIADO);
-            mapDtpToPedido(pedidoDTO, pedido);
+//            pedido.setStatus(Status.CRIADO);
+            mapDtoToPedido(pedidoDTO, pedido);
             pedido.calcularValorTotalDoPedido();
             pedido = pedidoRepository.save(pedido);
             return new PedidoDTO(pedido);
@@ -74,20 +83,34 @@ public class PedidoService {
     }
 
     @Transactional
-    public void deletePedidoById(Long id){
-        if(!pedidoRepository.existsById(id)){
+    public void deletePedidoById(Long id) {
+        if (!pedidoRepository.existsById(id)) {
             throw new ResourceNotFoundException("Recurso não encontrado. ID: " + id);
         }
 
         pedidoRepository.deleteById(id);
     }
 
-    private void mapDtpToPedido(PedidoDTO pedidoDTO, Pedido pedido) {
+    @Transactional
+    public void confirmarPagamento(Long id) {
+
+        Optional<Pedido> pedido = pedidoRepository.findById(id);
+
+        if (pedido.isEmpty()) {
+            throw new ResourceNotFoundException("Recurso não encontrado. ID: " + id);
+        }
+
+        pedido.get().setStatus(Status.PAGO);
+        pedidoRepository.save(pedido.get());
+
+    }
+
+    private void mapDtoToPedido(PedidoDTO pedidoDTO, Pedido pedido) {
 
         pedido.setNome(pedidoDTO.getNome());
         pedido.setCpf(pedidoDTO.getCpf());
 
-        for (ItemDoPedidoDTO itemDTO : pedidoDTO.getItens()){
+        for (ItemDoPedidoDTO itemDTO : pedidoDTO.getItens()) {
 
             ItemDoPedido itemPedido = new ItemDoPedido();
             itemPedido.setQuantidade(itemDTO.getQuantidade());

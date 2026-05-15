@@ -4,6 +4,7 @@ import com.github.cidarosa.ms.pedidos.dto.PedidoDTO;
 import com.github.cidarosa.ms.pedidos.service.PedidoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -18,8 +19,13 @@ public class PedidoController {
     @Autowired
     private PedidoService pedidoService;
 
+    @GetMapping("/port")
+    public String port(@Value("${local.server.port}") String porta) {
+        return "Instância respondeu na porta: " + porta;
+    }
+
     @GetMapping
-    public ResponseEntity<List<PedidoDTO>> getAll(){
+    public ResponseEntity<List<PedidoDTO>> getAll() {
 
         List<PedidoDTO> list = pedidoService.findAllPedidos();
 
@@ -27,7 +33,7 @@ public class PedidoController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PedidoDTO> getOne(@PathVariable Long id){
+    public ResponseEntity<PedidoDTO> getOne(@PathVariable Long id) {
 
         PedidoDTO pedidoDTO = pedidoService.findPedidoById(id);
 
@@ -35,7 +41,7 @@ public class PedidoController {
     }
 
     @PostMapping
-    public ResponseEntity<PedidoDTO> savePedido(@RequestBody @Valid PedidoDTO pedidoDTO){
+    public ResponseEntity<PedidoDTO> savePedido(@RequestBody @Valid PedidoDTO pedidoDTO) {
 
         pedidoDTO = pedidoService.savePedido(pedidoDTO);
 
@@ -50,15 +56,22 @@ public class PedidoController {
 
     @PutMapping("/{id}")
     public ResponseEntity<PedidoDTO> updatePedido(@PathVariable Long id,
-                                                  @Valid @RequestBody PedidoDTO pedidoDTO){
+                                                  @Valid @RequestBody PedidoDTO pedidoDTO) {
 
         pedidoDTO = pedidoService.updatePedido(id, pedidoDTO);
 
         return ResponseEntity.ok(pedidoDTO);
     }
 
+    @PutMapping("/{pedidoId}/pagamento/confirmado")
+    public void confirmarPagamento(@PathVariable Long pedidoId){
+
+        pedidoService.confirmarPagamento(pedidoId);
+
+    }
+
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletePedido(@PathVariable Long id){
+    public ResponseEntity<Void> deletePedido(@PathVariable Long id) {
 
         pedidoService.deletePedidoById(id);
 

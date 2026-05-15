@@ -1,10 +1,13 @@
 package com.github.cidarosa.ms_pagamentos.service;
 
+import com.github.cidarosa.ms_pagamentos.client.PedidoClient;
 import com.github.cidarosa.ms_pagamentos.dto.PagamentoDTO;
 import com.github.cidarosa.ms_pagamentos.entities.Pagamento;
 import com.github.cidarosa.ms_pagamentos.entities.Status;
+import com.github.cidarosa.ms_pagamentos.exceptions.PagamentoAprovadoException;
 import com.github.cidarosa.ms_pagamentos.exceptions.ResourceNotFoundException;
 import com.github.cidarosa.ms_pagamentos.repository.PagamentoRepository;
+import feign.FeignException;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,8 +21,11 @@ public class PagamentoService {
     @Autowired
     private PagamentoRepository pagamentoRepository;
 
+    @Autowired
+    private PedidoClient pedidoClient;
+
     @Transactional(readOnly = true)
-    public List<PagamentoDTO> findAllPagamentos(){
+    public List<PagamentoDTO> findAllPagamentos() {
 
         List<Pagamento> list = pagamentoRepository.findAll();
 
@@ -29,7 +35,7 @@ public class PagamentoService {
     }
 
     @Transactional(readOnly = true)
-    public PagamentoDTO findPagamentoById(Long id){
+    public PagamentoDTO findPagamentoById(Long id) {
 
         Pagamento pagamento = pagamentoRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Recurso não encontrado. ID: " + id)
@@ -39,7 +45,7 @@ public class PagamentoService {
     }
 
     @Transactional
-    public PagamentoDTO savePagamento(PagamentoDTO pagamentoDTO){
+    public PagamentoDTO savePagamento(PagamentoDTO pagamentoDTO) {
 
         Pagamento pagamento = new Pagamento();
 
@@ -50,10 +56,16 @@ public class PagamentoService {
     }
 
     @Transactional
-    public PagamentoDTO updatePagamento(Long id, PagamentoDTO pagamentoDTO){
+    public PagamentoDTO updatePagamento(Long id, PagamentoDTO pagamentoDTO) {
 
         try {
             Pagamento pagamento = pagamentoRepository.getReferenceById(id);
+
+            if (pagamento.getStatus().equals(Status.APROVADO)) {
+                throw new PagamentoAprovadoException(
+                        String.format("Pagamento id %d já está APROVADO e não pode ser alterado", id)
+                );
+            }
 
             mapDtoToPagamento(pagamentoDTO, pagamento);
             pagamento.setStatus(pagamentoDTO.getStatus());
@@ -64,14 +76,34 @@ public class PagamentoService {
         }
     }
 
-    public void deletePagamento(Long id){
+    public void deletePagamento(Long id) {
 
-        if(!pagamentoRepository.existsById(id)){
+        if (!pagamentoRepository.existsById(id)) {
 
             throw new ResourceNotFoundException("Recurso não encontrado. ID: " + id);
         }
 
         pagamentoRepository.deleteById(id);
+    }
+
+    @Transactional
+    public PagamentoDTO confirmarPagamentoDoPedido(Long id) {
+
+        Pagamento pagamento = pagamentoRepository.findById(id).orElseThrow(
+                () -> new ResourceNotFoundException("Recurso não encontrado. ID: " + id)
+        );
+        pagamento.setStatus(Status.APROVADO);
+        pagamentoRepository.save(pagamento);
+
+        try {
+            pedidoClient.confirmarPagamento(pagamento.getPedidoId());
+        } catch (FeignException.NotFound e){
+            throw new ResourceNotFoundException("Pedido não encontrado. ID: " + pagamento.getPedidoId());
+        } catch (FeignException e){
+            throw new RuntimeException("Falha ao comunicar com ms-pedidos. ", e);
+        }
+
+        return new PagamentoDTO(pagamento);
     }
 
     private void mapDtoToPagamento(PagamentoDTO pagamentoDTO, Pagamento pagamento) {

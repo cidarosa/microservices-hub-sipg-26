@@ -1,6 +1,7 @@
 package com.github.cidarosa.ms.pedidos.exceptions.handler;
 
 import com.github.cidarosa.ms.pedidos.exceptions.DatabaseException;
+import com.github.cidarosa.ms.pedidos.exceptions.PedidoPagoException;
 import com.github.cidarosa.ms.pedidos.exceptions.ResourceNotFoundException;
 import com.github.cidarosa.ms.pedidos.exceptions.dto.CustomErrorDTO;
 import com.github.cidarosa.ms.pedidos.exceptions.dto.ValidationErrorDTO;
@@ -23,6 +24,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<CustomErrorDTO> handleResourceNotFound(ResourceNotFoundException e,
                                                                  HttpServletRequest request) {
         HttpStatus status = HttpStatus.NOT_FOUND; //404
+        CustomErrorDTO err = new CustomErrorDTO(Instant.now(), status.value(),
+                e.getMessage(), request.getRequestURI());
+
+        return ResponseEntity.status(status).body(err);
+    }
+
+    @ExceptionHandler(PedidoPagoException.class)
+    public ResponseEntity<CustomErrorDTO> handlePedidoPago(PedidoPagoException e,
+                                                           HttpServletRequest request) {
+
+        HttpStatus status = HttpStatus.CONFLICT;
         CustomErrorDTO err = new CustomErrorDTO(Instant.now(), status.value(),
                 e.getMessage(), request.getRequestURI());
 
@@ -57,7 +69,7 @@ public class GlobalExceptionHandler {
     // 400 - tipo inválido em PathVariable/RequestParam (ex.: /produtos/abc quando espera Long)
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<CustomErrorDTO> handleTypeMismatch(MethodArgumentNotValidException e,
-                                                             HttpServletRequest request){
+                                                             HttpServletRequest request) {
         HttpStatus status = HttpStatus.BAD_REQUEST; //400
         CustomErrorDTO err = new CustomErrorDTO(Instant.now(), status.value(),
                 "Requisição inválida (parâmetro com tipo/formato incorreto).",
@@ -67,7 +79,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DatabaseException.class)
     public ResponseEntity<CustomErrorDTO> handleDatabase(DatabaseException e,
-                                                         HttpServletRequest request){
+                                                         HttpServletRequest request) {
 
         HttpStatus status = HttpStatus.CONFLICT; //409
         CustomErrorDTO err = new CustomErrorDTO(Instant.now(), status.value(),
